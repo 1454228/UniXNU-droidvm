@@ -30,7 +30,7 @@ jobs:
           xcodebuild -version
           xcodebuild -showsdks | grep -i iphoneos || { echo "::error::无 iphoneos SDK"; exit 1; }
 
-      - name: 安装依赖 (llvm: llvm-objcopy/nm + ipsw + unifdef/cmake/ninja + Python 3.12)
+      - name: "安装依赖 (llvm-objcopy/nm + ipsw + unifdef/cmake/ninja + Python 3.12)"
         run: |
           set -e
           brew install llvm ipsw unifdef cmake ninja || true
