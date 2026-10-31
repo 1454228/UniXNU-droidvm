@@ -147,6 +147,10 @@ jobs:
           # 只清理悬空符号链接(挂载 dmg 的 symlink 缓存恢复后悬空, 会让 mkdir 撞 FileExistsError);
           # 不要删整个 .cache/ - 里面存着 XNU 头文件等构建必需数据
           find "$GITHUB_WORKSPACE/UniXNU/out" -type l ! -exec test -e {} \; -print -delete 2>/dev/null || true
+          # 缓存搬运会弄丢 mesa-work 的 sparse-checkout skip-worktree 状态,
+          # validate_recorded_patches 会误报 "Unrecorded Mesa source changes";
+          # 直接删掉让 prepare_mesa 重建 (sparse fetch 单 commit + 13 补丁, 约 1 分钟)
+          rm -rf "$GITHUB_WORKSPACE/UniXNU/out/droidvm/tree/.cache/mesa-work"
           PY=python3
           command -v python3.12 >/dev/null && PY=python3.12
           $PY --version
