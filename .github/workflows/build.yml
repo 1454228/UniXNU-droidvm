@@ -33,11 +33,15 @@ jobs:
       - name: "安装依赖 (llvm-objcopy/nm + ipsw + unifdef/cmake/ninja + Python 3.12)"
         run: |
           set -e
-          brew install llvm ipsw unifdef cmake ninja || true
+          brew install llvm lld ipsw unifdef cmake ninja || true
           brew install python@3.12 || true
           ls /opt/homebrew/opt/llvm/bin/ | grep -E "objcopy|nm" || { echo "::error::llvm 工具缺失"; exit 1; }
-          # llvm/lld 是 keg-only 不在 PATH, package 步骤直接查 PATH 找 lld-link
+          # llvm 与 lld 是两个独立 keg-only formula: llvm-objcopy/nm 在 llvm 包,
+          # lld-link 在 lld 包 (package 步骤直接查 PATH 找 lld-link)
           echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/opt/lld/bin" >> "$GITHUB_PATH"
+          export PATH="/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/lld/bin:$PATH"
+          command -v lld-link || { echo "::error::lld-link 缺失"; exit 1; }
           which python3.12 || true
 
       - name: 克隆 UniXNU 与设备仓库
