@@ -76,11 +76,41 @@ jobs:
               print('already patched')
           EOF
 
-      - name: 缓存构建输出与 IPSW (约 8 GiB)
-        uses: actions/cache@v4
+      # 让 build-droidvm-gpu.py 失败时把子脚本 (build-adreno740-accelerator.py) 的 stderr 打出来,
+      # 否则 capture_output 会把真实报错吞掉
+      - name: 给 build-droidvm-gpu.py 打诊断补丁 (失败时输出子脚本 stderr)
+        working-directory: UniXNU-droidvm
+        run: |
+          set -e
+          python3 - <<'EOF'
+          import re
+          from pathlib import Path
+          p = Path('scripts/build-droidvm-gpu.py')
+          src = p.read_text()
+          pat = re.compile(
+              r"print\(subprocess\.run\(\['python3', ROOT / 'scripts/build-adreno740-accelerator\.py'\], "
+              r"check=True, capture_output=True,\s*\n\s*text=True\)\.stdout, end=''\)")
+          repl = (
+              "_r = subprocess.run(['python3', ROOT / 'scripts/build-adreno740-accelerator.py'], "
+              "check=False, capture_output=True, text=True)\n"
+              "print(_r.stdout, end='')\n"
+              "import sys as _sys\n"
+              "print(_r.stderr, file=_sys.stderr, end='')\n"
+              "if _r.returncode:\n"
+              "    raise SystemExit('build-adreno740-accelerator failed rc=%d' % _r.returncode)")
+          src2, n = pat.subn(repl, src)
+          assert n == 1, 'gpu wrapper pattern matched %d times' % n
+          p.write_text(src2)
+          print('gpu wrapper patched')
+          EOF
+
+      # restore/save 拆开: 失败也保存缓存, 下次续跑不再重下 8 GiB IPSW
+      - name: 恢复构建输出与 IPSW 缓存
+        uses: actions/cache/restore@v4
         with:
           path: UniXNU/out
-          key: droidvm-out-${{ inputs.ipsw_build }}
+          key: droidvm-out-${{ inputs.ipsw_build }}-${{ github.run_id }}
+          restore-keys: droidvm-out-
 
       - name: 构建客户机镜像
         working-directory: UniXNU-droidvm
@@ -95,6 +125,22 @@ jobs:
           $PY --version
           $PY scripts/build-droidvm-all.py \
             --unique-chip-id "$CHIP"
+
+      - name: 保存构建输出与 IPSW 缓存 (失败也保存)
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: UniXNU/out
+          key: droidvm-out-${{ inputs.ipsw_build }}-${{ github.run_id }}
+
+      - name: 上传构建日志 (失败时诊断用)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: UniXNU/out/**/*.log
+          retention-days: 3
+          if-no-files-found: ignore
 
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
