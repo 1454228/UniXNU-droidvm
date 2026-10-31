@@ -30,11 +30,12 @@ jobs:
           xcodebuild -version
           xcodebuild -showsdks | grep -i iphoneos || { echo "::error::无 iphoneos SDK"; exit 1; }
 
-      - name: 安装依赖 (ipsw 工具 + Python 3.12, build 脚本需要 tomllib)
+      - name: 安装依赖 (llvm: llvm-objcopy/nm + ipsw + unifdef/cmake/ninja + Python 3.12)
         run: |
           set -e
-          brew install ipsw || true
+          brew install llvm ipsw unifdef cmake ninja || true
           brew install python@3.12 || true
+          ls /opt/homebrew/opt/llvm/bin/ | grep -E "objcopy|nm" || { echo "::error::llvm 工具缺失"; exit 1; }
           which python3.12 || true
 
       - name: 克隆 UniXNU 与设备仓库
