@@ -36,6 +36,8 @@ jobs:
           brew install llvm ipsw unifdef cmake ninja || true
           brew install python@3.12 || true
           ls /opt/homebrew/opt/llvm/bin/ | grep -E "objcopy|nm" || { echo "::error::llvm 工具缺失"; exit 1; }
+          # llvm/lld 是 keg-only 不在 PATH, package 步骤直接查 PATH 找 lld-link
+          echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
           which python3.12 || true
 
       - name: 克隆 UniXNU 与设备仓库
