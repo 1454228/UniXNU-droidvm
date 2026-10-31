@@ -23,17 +23,12 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: 校验 Xcode 版本 (构建要求 macOS 27 / Xcode 27.1)
+      - name: 检查 Xcode (项目仅需 xcodebuild + iphoneos SDK, 未钉死 27.1)
         run: |
           set -e
-          # 若 runner 镜像未预装 Xcode 27.1, 此步会明确报错, 避免后面白跑
-          if [ -d /Applications/Xcode_27.1.app ]; then
-            sudo xcode-select -s /Applications/Xcode_27.1.app/Contents/Developer
-          else
-            echo "::error::runner 未提供 Xcode 27.1, 当前版本:"; xcodebuild -version
-            exit 1
-          fi
+          echo "可用 Xcode 版本:"; ls /Applications | grep -i xcode || true
           xcodebuild -version
+          xcodebuild -showsdks | grep -i iphoneos || { echo "::error::无 iphoneos SDK"; exit 1; }
 
       - name: 安装依赖 (ipsw 工具 + Python 3.12, build 脚本需要 tomllib)
         run: |
