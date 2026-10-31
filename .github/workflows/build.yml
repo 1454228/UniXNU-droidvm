@@ -150,7 +150,10 @@ jobs:
           # 缓存搬运会弄丢 mesa-work 的 sparse-checkout skip-worktree 状态,
           # validate_recorded_patches 会误报 "Unrecorded Mesa source changes";
           # 直接删掉让 prepare_mesa 重建 (sparse fetch 单 commit + 13 补丁, 约 1 分钟)
-          rm -rf "$GITHUB_WORKSPACE/UniXNU/out/droidvm/tree/.cache/mesa-work"
+          # 注意: 必须同时删 mesa-work.prepared stamp, 否则 prepare_mesa 会跳过
+          # checkout+补丁, 留下一个索引有文件但磁盘为空的空壳 (diff 全报改动)
+          rm -rf "$GITHUB_WORKSPACE/UniXNU/out/droidvm/tree/.cache/mesa-work" \
+                "$GITHUB_WORKSPACE/UniXNU/out/droidvm/tree/.cache/mesa-work.prepared"
           PY=python3
           command -v python3.12 >/dev/null && PY=python3.12
           $PY --version
