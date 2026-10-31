@@ -15,7 +15,7 @@ jobs:
       - name: 克隆 edk2-gunyah (含 edk2 子模块)
         run: |
           git clone --recurse-submodules --shallow-submodules --depth 1 \
-            -b droidvm https://github.com/Droid-VM/edk2-gunyah.git
+            -b wip/hackintosh https://github.com/Droid-VM/edk2-gunyah.git
 
       - name: 编译固件
         working-directory: edk2-gunyah
