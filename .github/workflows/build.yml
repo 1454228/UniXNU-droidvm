@@ -121,6 +121,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
+          # 清理缓存恢复带来的悬空符号链接与运行时临时目录:
+          # .cache/firmware 是构建时挂载 dmg 的 symlink, 卸载+缓存恢复后变成悬空链接,
+          # 会让 mkdir(parents=True) 撞 FileExistsError (pathlib 经典坑)
+          find "$GITHUB_WORKSPACE/UniXNU/out" -type l ! -exec test -e {} \; -print -delete 2>/dev/null || true
+          rm -rf "$GITHUB_WORKSPACE/UniXNU/out/droidvm/tree/.cache"
           PY=python3
           command -v python3.12 >/dev/null && PY=python3.12
           $PY --version
