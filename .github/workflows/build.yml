@@ -33,21 +33,23 @@ jobs:
       - name: "安装依赖 (llvm-objcopy/nm + ipsw + unifdef/cmake/ninja + Python 3.12)"
         run: |
           set -e
-          brew install llvm lld ipsw unifdef cmake ninja gnu-sed bison flex pkg-config || true
+          brew install llvm lld ipsw unifdef cmake ninja gnu-sed bison flex pkg-config glslang || true
           brew install python@3.12 || true
           ls /opt/homebrew/opt/llvm/bin/ | grep -E "objcopy|nm" || { echo "::error::llvm 工具缺失"; exit 1; }
           # llvm 与 lld 是两个独立 keg-only formula: llvm-objcopy/nm 在 llvm 包,
           # lld-link 在 lld 包 (package 步骤直接查 PATH 找 lld-link);
           # gnu-sed 也是 keg-only (tools 步骤的 toybox 需要 gsed);
-          # bison/flex/pkg-config 是 Mesa GPU 插件构建需要 (keg-only)
-          for d in llvm lld gnu-sed bison flex; do
+          # bison 3.8.2/flex (Mesa 钉死版本, brew 正好匹配);
+          # glslang (glslangValidator + spirv-val, Turnip/Mesa 构建需要)
+          for d in llvm lld gnu-sed bison flex glslang; do
             [ -d "/opt/homebrew/opt/$d/bin" ] && echo "/opt/homebrew/opt/$d/bin" >> "$GITHUB_PATH"
           done
-          export PATH="/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/gnu-sed/bin:/opt/homebrew/opt/bison/bin:/opt/homebrew/opt/flex/bin:$PATH"
+          export PATH="/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/gnu-sed/bin:/opt/homebrew/opt/bison/bin:/opt/homebrew/opt/flex/bin:/opt/homebrew/opt/glslang/bin:$PATH"
           command -v lld-link || { echo "::error::lld-link 缺失"; exit 1; }
           command -v gsed || { echo "::error::gsed 缺失"; exit 1; }
           command -v bison || { echo "::error::bison 缺失"; exit 1; }
-          command -v flex || { echo "::error::flex 缺失"; exit 1; }
+          command -v glslangValidator || { echo "::error::glslangValidator 缺失"; exit 1; }
+          bison --version | head -1
           which python3.12 || true
 
       - name: 克隆 UniXNU 与设备仓库
