@@ -33,7 +33,7 @@ jobs:
       - name: "安装依赖 (llvm-objcopy/nm + ipsw + unifdef/cmake/ninja + Python 3.12)"
         run: |
           set -e
-          brew install llvm lld ipsw unifdef cmake ninja gnu-sed bison flex pkg-config glslang vulkan-headers shaderc || true
+          brew install llvm lld ipsw unifdef cmake ninja gnu-sed bison flex pkg-config glslang vulkan-headers shaderc mtools || true
           brew install python@3.12 || true
           ls /opt/homebrew/opt/llvm/bin/ | grep -E "objcopy|nm" || { echo "::error::llvm 工具缺失"; exit 1; }
           # llvm 与 lld 是两个独立 keg-only formula: llvm-objcopy/nm 在 llvm 包,
@@ -43,11 +43,13 @@ jobs:
           # glslang (glslangValidator + spirv-val, Turnip/Mesa 构建需要);
           # vulkan-headers (host 模拟 smoke 测试编 vulkan_smoke.c 需要 vulkan/vulkan.h,
           #   脚本硬编码 -I /opt/homebrew/include, keg-only 时需软链兜底);
-          # shaderc (gen-turnip-smoke-shaders.py 需要 glslc 编着色器, glslang 包不提供)
-          for d in llvm lld gnu-sed bison flex glslang shaderc; do
+          # shaderc (gen-turnip-smoke-shaders.py 需要 glslc 编着色器, glslang 包不提供);
+          # mtools (payload 步骤格式化 EFI FAT 盘需要 mformat)
+          for d in llvm lld gnu-sed bison flex glslang shaderc mtools; do
             [ -d "/opt/homebrew/opt/$d/bin" ] && echo "/opt/homebrew/opt/$d/bin" >> "$GITHUB_PATH"
           done
-          export PATH="/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/gnu-sed/bin:/opt/homebrew/opt/bison/bin:/opt/homebrew/opt/flex/bin:/opt/homebrew/opt/glslang/bin:/opt/homebrew/opt/shaderc/bin:$PATH"
+          export PATH="/opt/homebrew/opt/llvm/bin:/opt/homebrew/opt/lld/bin:/opt/homebrew/opt/gnu-sed/bin:/opt/homebrew/opt/bison/bin:/opt/homebrew/opt/flex/bin:/opt/homebrew/opt/glslang/bin:/opt/homebrew/opt/shaderc/bin:/opt/homebrew/opt/mtools/bin:$PATH"
+          command -v mformat || { echo "::error::mformat 缺失"; exit 1; }
           if [ ! -e /opt/homebrew/include/vulkan/vulkan.h ]; then
             ln -sfn "$(brew --prefix vulkan-headers)/include/vulkan" /opt/homebrew/include/vulkan
           fi
