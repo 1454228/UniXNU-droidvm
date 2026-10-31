@@ -54,6 +54,9 @@ jobs:
           [ -e /opt/homebrew/include/vulkan/vulkan.h ] || { echo "::error::vulkan 头文件缺失"; exit 1; }
           command -v lld-link || { echo "::error::lld-link 缺失"; exit 1; }
           command -v glslc || { echo "::error::glslc 缺失"; exit 1; }
+          # Rust: Metal bridge 的 Rust 组件需交叉编译 aarch64-apple-ios target
+          rustup target add aarch64-apple-ios || { echo "::error::rustup 不可用"; exit 1; }
+          rustup target list --installed | grep -q aarch64-apple-ios || { echo "::error::ios rust target 缺失"; exit 1; }
           command -v gsed || { echo "::error::gsed 缺失"; exit 1; }
           command -v bison || { echo "::error::bison 缺失"; exit 1; }
           command -v glslangValidator || { echo "::error::glslangValidator 缺失"; exit 1; }
