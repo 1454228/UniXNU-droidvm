@@ -44,6 +44,38 @@ jobs:
           git clone -b wip/hackintosh https://github.com/Droid-VM/UniXNU-droidvm
 
       # 构建输出与 IPSW 都落在 UniXNU/out 下; 缓存它可让重跑跳过 8 GiB 下载与已完成步骤
+      - name: 给 prepare-xnu-source.py 打认证补丁 (避免 api.github.com 匿名限流 403)
+        working-directory: UniXNU
+        run: |
+          set -e
+          python3 - <<'EOF'
+          from pathlib import Path
+          p = Path('scripts/prepare-xnu-source.py')
+          src = p.read_text()
+          patch = '''
+          # --- ci patch: authenticate api.github.com via GITHUB_TOKEN ---
+          if os.environ.get('GITHUB_TOKEN'):
+              _real_urlopen = urllib.request.urlopen
+              def _urlopen(url, *a, **kw):
+                  if isinstance(url, str) and 'api.github.com' in url:
+                      req = urllib.request.Request(url, headers={
+                          'Authorization': 'Bearer ' + os.environ['GITHUB_TOKEN'],
+                          'User-Agent': 'unixnu-ci'})
+                      return _real_urlopen(req, *a, **kw)
+                  return _real_urlopen(url, *a, **kw)
+              urllib.request.urlopen = _urlopen
+          # --- end patch ---
+          '''
+          anchor = 'import urllib.request\n'
+          assert anchor in src, 'anchor not found'
+          if 'ci patch' not in src:
+              src = src.replace(anchor, anchor + patch, 1)
+              p.write_text(src)
+              print('patched')
+          else:
+              print('already patched')
+          EOF
+
       - name: 缓存构建输出与 IPSW (约 8 GiB)
         uses: actions/cache@v4
         with:
@@ -54,6 +86,8 @@ jobs:
         working-directory: UniXNU-droidvm
         env:
           CHIP: ${{ inputs.chip_id }}
+          # Actions 内置 token: api.github.com 1000 次/小时, 供打补丁后的 prepare-xnu-source.py 使用
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
           PY=python3
