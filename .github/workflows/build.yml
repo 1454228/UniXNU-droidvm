@@ -1,0 +1,76 @@
+# UniXNU-droidvm 客户机构建 CI
+# 运行环境: GitHub 公开仓库的 macOS runner (免费)
+# 作用: 在云端 Mac 上编译 XNU 内核 + UniXNU 引导 + 签名策略, 产出可刷入 DroidVM 的磁盘镜像
+# 注意: 本项目不随仓库分发任何苹果固件; 构建时从 Apple 公开服务器拉取 IPSW(约 8 GiB)。
+
+name: Build UniXNU-droidvm guest
+
+on:
+  workflow_dispatch:
+    inputs:
+      chip_id:
+        description: "16 位十六进制 platform seed (openssl rand -hex 8 生成, 每次构建保持不变)"
+        required: true
+      ipsw_build:
+        description: "IPSW build 标识, 仅用作缓存 key (默认 21H461)"
+        required: false
+        default: "21H461"
+
+jobs:
+  build:
+    # 必须是 macOS runner; 公开仓库才免费用
+    runs-on: macos-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: 校验 Xcode 版本 (构建要求 macOS 27 / Xcode 27.1)
+        run: |
+          set -e
+          # 若 runner 镜像未预装 Xcode 27.1, 此步会明确报错, 避免后面白跑
+          if [ -d /Applications/Xcode_27.1.app ]; then
+            sudo xcode-select -s /Applications/Xcode_27.1.app/Contents/Developer
+          else
+            echo "::error::runner 未提供 Xcode 27.1, 当前版本:"; xcodebuild -version
+            exit 1
+          fi
+          xcodebuild -version
+
+      - name: 安装依赖 (ipsw 工具 + Python 3.12, build 脚本需要 tomllib)
+        run: |
+          set -e
+          brew install ipsw || true
+          brew install python@3.12 || true
+          which python3.12 || true
+
+      - name: 克隆 UniXNU 与设备仓库
+        run: |
+          set -e
+          git clone --recurse-submodules -b wip/droidvm https://github.com/Droid-VM/UniXNU
+          git clone -b wip/hackintosh https://github.com/Droid-VM/UniXNU-droidvm
+
+      # 构建输出与 IPSW 都落在 UniXNU/out 下; 缓存它可让重跑跳过 8 GiB 下载与已完成步骤
+      - name: 缓存构建输出与 IPSW (约 8 GiB)
+        uses: actions/cache@v4
+        with:
+          path: UniXNU/out
+          key: droidvm-out-${{ inputs.ipsw_build }}
+
+      - name: 构建客户机镜像
+        working-directory: UniXNU-droidvm
+        env:
+          CHIP: ${{ inputs.chip_id }}
+        run: |
+          set -e
+          PY=python3
+          command -v python3.12 >/dev/null && PY=python3.12
+          $PY --version
+          $PY scripts/build-droidvm-all.py \
+            --unique-chip-id "$CHIP"
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: droidvm-unixnu-release
+          path: UniXNU/out/droidvm/release/
+          retention-days: 7
+          # 若产物超过单文件上限, 改上传到 Release 或用分卷
