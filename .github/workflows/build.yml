@@ -57,6 +57,12 @@ jobs:
           set -e
           git clone --recurse-submodules -b wip/droidvm https://github.com/Droid-VM/UniXNU
           git clone -b wip/hackintosh https://github.com/Droid-VM/UniXNU-droidvm
+          # 上游子模块 pin 漂移: UniXNU 钉的 ArmSmmu4K@1811b6d1 是 7 字段旧 Arena API,
+          # 而 Adreno740 驱动 (NativeAdrenoSmmuMemory.cpp) 已用 8 字段新 API
+          # (mapping+capacity_pages); 升级到与新 API 配套的 commit (host 模拟编译必需)
+          git -C UniXNU/kits/ArmSmmu4K fetch -q --depth 1 origin 3ba92451bd44bb742d11758fbfcd3a446ecad685
+          git -C UniXNU/kits/ArmSmmu4K checkout -q -f --detach 3ba92451bd44bb742d11758fbfcd3a446ecad685
+          grep -n "volatile uint64_t \*mapping" UniXNU/kits/ArmSmmu4K/ArmSmmu4KLive.h || { echo "::error::ArmSmmu4K 升级未生效"; exit 1; }
 
       # 构建输出与 IPSW 都落在 UniXNU/out 下; 缓存它可让重跑跳过 8 GiB 下载与已完成步骤
       - name: 给 prepare-xnu-source.py 打认证补丁 (避免 api.github.com 匿名限流 403)
